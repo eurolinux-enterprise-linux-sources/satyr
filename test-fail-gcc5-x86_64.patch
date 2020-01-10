@@ -1,0 +1,104 @@
+diff -ur satyr-0.16/tests/ruby_stacktrace.at satyr-0.16.1.gd339.dirty/tests/ruby_stacktrace.at
+--- satyr-0.16/tests/ruby_stacktrace.at	2015-02-18 14:04:56.000000000 +0100
++++ satyr-0.16.1.gd339.dirty/tests/ruby_stacktrace.at	2015-02-20 14:47:11.000000000 +0100
+@@ -261,6 +261,7 @@
+ 
+ AT_TESTFUN([sr_ruby_stacktrace_from_json],
+ [[
++#include "stacktrace.h"
+ #include "ruby/stacktrace.h"
+ #include "ruby/frame.h"
+ #include "utils.h"
+@@ -268,13 +269,14 @@
+ #include <assert.h>
+ #include <stdlib.h>
+ #include <stdio.h>
++#include <string.h>
+ 
+ void
+ check(char *filename)
+ {
+   char *error_message = NULL;
+-  const char *file_contents = sr_file_to_string(filename, &error_message);
+-  const char *input = file_contents;
++  char *file_contents = sr_file_to_string(filename, &error_message);
++  char *input = file_contents;
+   struct sr_location location;
+   sr_location_init(&location);
+ 
+diff -ur satyr-0.16/tests/testsuite satyr-0.16.1.gd339.dirty/tests/testsuite
+--- satyr-0.16/tests/testsuite	2015-02-19 12:23:19.000000000 +0100
++++ satyr-0.16.1.gd339.dirty/tests/testsuite	2015-02-20 14:48:52.000000000 +0100
+@@ -1041,7 +1041,7 @@
+ # List of tests.
+ if $at_list_p; then
+   cat <<_ATEOF || at_write_fail=1
+-satyr 0.16 test suite test groups:
++satyr 0.16.1.gd339.dirty test suite test groups:
+ 
+  NUM: FILE-NAME:LINE     TEST-GROUP-NAME
+       KEYWORDS
+@@ -1082,7 +1082,7 @@
+   exit $at_write_fail
+ fi
+ if $at_version_p; then
+-  $as_echo "$as_me (satyr 0.16)" &&
++  $as_echo "$as_me (satyr 0.16.1.gd339.dirty)" &&
+   cat <<\_ATEOF || at_write_fail=1
+ 
+ Copyright (C) 2012 Free Software Foundation, Inc.
+@@ -1330,13 +1330,13 @@
+ exec 5>>"$at_suite_log"
+ 
+ # Banners and logs.
+-$as_echo "## ---------------------- ##
+-## satyr 0.16 test suite. ##
+-## ---------------------- ##"
+-{
+-  $as_echo "## ---------------------- ##
+-## satyr 0.16 test suite. ##
+-## ---------------------- ##"
++$as_echo "## ------------------------------------ ##
++## satyr 0.16.1.gd339.dirty test suite. ##
++## ------------------------------------ ##"
++{
++  $as_echo "## ------------------------------------ ##
++## satyr 0.16.1.gd339.dirty test suite. ##
++## ------------------------------------ ##"
+   echo
+ 
+   $as_echo "$as_me: command line was:"
+@@ -2179,7 +2179,7 @@
+   $as_echo "Please send $at_msg and all information you think might help:
+ 
+    To: <crash-catcher@fedorahosted.org>
+-   Subject: [satyr 0.16] $as_me: $at_fail_list${at_fail_list:+ failed${at_xpass_list:+, }}$at_xpass_list${at_xpass_list:+ passed unexpectedly}
++   Subject: [satyr 0.16.1.gd339.dirty] $as_me: $at_fail_list${at_fail_list:+ failed${at_xpass_list:+, }}$at_xpass_list${at_xpass_list:+ passed unexpectedly}
+ 
+ You may investigate any problem if you feel able to do so, in which
+ case the test suite provides a good starting point.  Its output may
+@@ -10995,6 +10995,7 @@
+ 
+ cat >sr_ruby_stacktrace_from_json.c <<'_ATEOF'
+ 
++#include "stacktrace.h"
+ #include "ruby/stacktrace.h"
+ #include "ruby/frame.h"
+ #include "utils.h"
+@@ -11002,13 +11003,14 @@
+ #include <assert.h>
+ #include <stdlib.h>
+ #include <stdio.h>
++#include <string.h>
+ 
+ void
+ check(char *filename)
+ {
+   char *error_message = NULL;
+-  const char *file_contents = sr_file_to_string(filename, &error_message);
+-  const char *input = file_contents;
++  char *file_contents = sr_file_to_string(filename, &error_message);
++  char *input = file_contents;
+   struct sr_location location;
+   sr_location_init(&location);
+ 

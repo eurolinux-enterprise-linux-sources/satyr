@@ -1,0 +1,826 @@
+diff -urN satyr-0.16/configure satyr-0.16.2.g5cb0/configure
+--- satyr-0.16/configure	2015-02-19 12:23:13.000000000 +0100
++++ satyr-0.16.2.g5cb0/configure	2015-04-15 11:45:02.000000000 +0200
+@@ -635,8 +635,6 @@
+ am__EXEEXT_TRUE
+ LTLIBOBJS
+ LIBOBJS
+-HAVE_LIBOPCODES_FALSE
+-HAVE_LIBOPCODES_TRUE
+ ENABLE_STATIC_PYTHON_MODULE_FALSE
+ ENABLE_STATIC_PYTHON_MODULE_TRUE
+ ENABLE_PYTHON_MANPAGE_FALSE
+@@ -12961,94 +12959,6 @@
+ fi
+ 
+ 
+-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -lopcodes" >&5
+-$as_echo_n "checking for main in -lopcodes... " >&6; }
+-if ${ac_cv_lib_opcodes_main+:} false; then :
+-  $as_echo_n "(cached) " >&6
+-else
+-  ac_check_lib_save_LIBS=$LIBS
+-LIBS="-lopcodes  $LIBS"
+-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+-/* end confdefs.h.  */
+-
+-
+-int
+-main ()
+-{
+-return main ();
+-  ;
+-  return 0;
+-}
+-_ACEOF
+-if ac_fn_c_try_link "$LINENO"; then :
+-  ac_cv_lib_opcodes_main=yes
+-else
+-  ac_cv_lib_opcodes_main=no
+-fi
+-rm -f core conftest.err conftest.$ac_objext \
+-    conftest$ac_exeext conftest.$ac_ext
+-LIBS=$ac_check_lib_save_LIBS
+-fi
+-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_opcodes_main" >&5
+-$as_echo "$ac_cv_lib_opcodes_main" >&6; }
+-if test "x$ac_cv_lib_opcodes_main" = xyes; then :
+-  have_libopcodes=yes
+-else
+-  have_libopcodes=no
+-fi
+-
+-if test "$have_libopcodes" = "no" -a "$target_cpu" = "x86_64"; then
+-    echo "The libopcodes library was not found in the search path. The core stacktrace support "
+-    echo "will not be built.  If you want to build core fingerprinting support, please ensure"
+-    echo "that libopcodes is installed and its directory is included in the search path."
+-    echo "Then run configure again before attempting to build Satyr."
+-fi
+-
+-# Check libopcodes
+-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether libopcodes is position independent" >&5
+-$as_echo_n "checking whether libopcodes is position independent... " >&6; }
+-opcodes_pic="not found"
+-# ugly, but still better than whitelisting known-working systems
+-for DIR in /lib /usr/lib /lib64 /usr/lib64; do
+-  OPCODES="$DIR/libopcodes.a"
+-  if ! test -r $OPCODES; then
+-      continue
+-  fi
+-
+-  if readelf -r $OPCODES | grep R_X86_64_32 >/dev/null; then
+-      opcodes_pic=no
+-      break
+-  else
+-      opcodes_pic=yes
+-      break
+-  fi
+-done
+-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $opcodes_pic" >&5
+-$as_echo "$opcodes_pic" >&6; }
+-
+-if test "$opcodes_pic" = "no" -a "$target_cpu" = "x86_64"; then
+-    echo "The libopcodes library on your system was not compiled with PIC. The core backtrace fingerprinting support "
+-    echo "will not be built.  If you want to build core backtrace support, please ensure"
+-    echo "that the provided libopcodes is build with -fPIC."
+-    echo "Then run configure again before attempting to build Satyr."
+-fi
+-
+-test ! \( "$opcodes_pic" = "yes" -a "$have_libopcodes" = "yes" -a "$target_cpu" = "x86_64" \)
+-have_good_libopcodes=$?
+- if test $have_good_libopcodes -eq 1; then
+-  HAVE_LIBOPCODES_TRUE=
+-  HAVE_LIBOPCODES_FALSE='#'
+-else
+-  HAVE_LIBOPCODES_TRUE='#'
+-  HAVE_LIBOPCODES_FALSE=
+-fi
+-
+-
+-cat >>confdefs.h <<_ACEOF
+-#define HAVE_LIBOPCODES $have_good_libopcodes
+-_ACEOF
+-
+-
+ # Check BFD
+ { $as_echo "$as_me:${as_lineno-$LINENO}: checking for main in -lbfd" >&5
+ $as_echo_n "checking for main in -lbfd... " >&6; }
+@@ -13651,10 +13561,6 @@
+   as_fn_error $? "conditional \"ENABLE_STATIC_PYTHON_MODULE\" was never defined.
+ Usually this means the macro was only invoked conditionally." "$LINENO" 5
+ fi
+-if test -z "${HAVE_LIBOPCODES_TRUE}" && test -z "${HAVE_LIBOPCODES_FALSE}"; then
+-  as_fn_error $? "conditional \"HAVE_LIBOPCODES\" was never defined.
+-Usually this means the macro was only invoked conditionally." "$LINENO" 5
+-fi
+ 
+ : "${CONFIG_STATUS=./config.status}"
+ ac_write_fail=0
+diff -urN satyr-0.16/configure.ac satyr-0.16.2.g5cb0/configure.ac
+--- satyr-0.16/configure.ac	2014-12-02 17:07:46.000000000 +0100
++++ satyr-0.16.2.g5cb0/configure.ac	2015-04-15 11:40:16.000000000 +0200
+@@ -54,46 +54,6 @@
+               [enable_static_python_module=no])
+ AM_CONDITIONAL(ENABLE_STATIC_PYTHON_MODULE, [test $enable_static_python_module = yes])
+ 
+-AC_CHECK_LIB([opcodes], [main], [have_libopcodes=yes], [have_libopcodes=no])
+-[if test "$have_libopcodes" = "no" -a "$target_cpu" = "x86_64"; then]
+-    [echo "The libopcodes library was not found in the search path. The core stacktrace support "]
+-    [echo "will not be built.  If you want to build core fingerprinting support, please ensure"]
+-    [echo "that libopcodes is installed and its directory is included in the search path."]
+-    [echo "Then run configure again before attempting to build Satyr."]
+-[fi]
+-
+-# Check libopcodes
+-AC_MSG_CHECKING([whether libopcodes is position independent])
+-opcodes_pic="not found"
+-# ugly, but still better than whitelisting known-working systems
+-for DIR in /lib /usr/lib /lib64 /usr/lib64; do
+-  OPCODES="$DIR/libopcodes.a"
+-  if ! test -r $OPCODES; then
+-      continue
+-  fi
+-
+-  if readelf -r $OPCODES | grep R_X86_64_32 >/dev/null; then
+-      opcodes_pic=no
+-      break
+-  else
+-      opcodes_pic=yes
+-      break
+-  fi
+-done
+-AC_MSG_RESULT([$opcodes_pic])
+-
+-[if test "$opcodes_pic" = "no" -a "$target_cpu" = "x86_64"; then]
+-    [echo "The libopcodes library on your system was not compiled with PIC. The core backtrace fingerprinting support "]
+-    [echo "will not be built.  If you want to build core backtrace support, please ensure"]
+-    [echo "that the provided libopcodes is build with -fPIC."]
+-    [echo "Then run configure again before attempting to build Satyr."]
+-[fi]
+-
+-test ! \( "$opcodes_pic" = "yes" -a "$have_libopcodes" = "yes" -a "$target_cpu" = "x86_64" \)
+-have_good_libopcodes=$?
+-AM_CONDITIONAL(HAVE_LIBOPCODES, test $have_good_libopcodes -eq 1)
+-AC_DEFINE_UNQUOTED(HAVE_LIBOPCODES, $have_good_libopcodes, [Have libopcodes compiled with -fPIC])
+-
+ # Check BFD
+ AC_CHECK_LIB([bfd], [main])
+ 
+diff -urN satyr-0.16/include/core/fingerprint.h satyr-0.16.2.g5cb0/include/core/fingerprint.h
+--- satyr-0.16/include/core/fingerprint.h	2014-10-03 15:25:56.000000000 +0200
++++ satyr-0.16.2.g5cb0/include/core/fingerprint.h	2015-04-15 11:40:16.000000000 +0200
+@@ -22,7 +22,7 @@
+ 
+ /**
+  * @file
+- * @brief Fingerprint algorithm for core stack traces.
++ * @brief Fingerprint algorithm for core stack traces. (DEPRECATED)
+  */
+ 
+ #ifdef __cplusplus
+diff -urN satyr-0.16/lib/config.h.in satyr-0.16.2.g5cb0/lib/config.h.in
+--- satyr-0.16/lib/config.h.in	2015-02-19 12:23:13.000000000 +0100
++++ satyr-0.16.2.g5cb0/lib/config.h.in	2015-04-15 11:45:02.000000000 +0200
+@@ -39,9 +39,6 @@
+ /* Define to 1 if you have the <libelf.h> header file. */
+ #undef HAVE_LIBELF_H
+ 
+-/* Have libopcodes compiled with -fPIC */
+-#undef HAVE_LIBOPCODES
+-
+ /* Define to 1 if you have the `rpm' library (-lrpm). */
+ #undef HAVE_LIBRPM
+ 
+diff -urN satyr-0.16/lib/core_fingerprint.c satyr-0.16.2.g5cb0/lib/core_fingerprint.c
+--- satyr-0.16/lib/core_fingerprint.c	2014-12-02 17:07:46.000000000 +0100
++++ satyr-0.16.2.g5cb0/lib/core_fingerprint.c	2015-04-15 11:40:16.000000000 +0200
+@@ -20,549 +20,13 @@
+ #include "config.h"
+ 
+ #include "core/fingerprint.h"
+-#include "core/stacktrace.h"
+-#include "core/frame.h"
+-#include "core/thread.h"
+ #include "utils.h"
+-#include "strbuf.h"
+-#include "elves.h"
+-#include "disasm.h"
+-#include "callgraph.h"
+-#include "sha1.h"
+-#include <ctype.h>
+-#include <string.h>
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <search.h>
+-
+-#if HAVE_LIBOPCODES
+-
+-static void
+-fingerprint_add_bool(struct sr_strbuf *buffer,
+-                     const char *name,
+-                     bool value)
+-{
+-    sr_strbuf_append_strf(buffer, ";%s:%d", name, value ? 1 : 0);
+-}
+-
+-static void
+-fingerprint_add_list(struct sr_strbuf *buffer,
+-                     const char *name,
+-                     char **list,
+-                     size_t count)
+-{
+-    sr_strbuf_append_strf(buffer, ";%s:", name);
+-
+-    bool first = true;
+-    for (size_t loop = 0; loop < count; ++loop)
+-    {
+-        sr_strbuf_append_strf(buffer,
+-                               "%s%s",
+-                               (first ? "" : ","),
+-                               list[loop]);
+-
+-        first = false;
+-    }
+-
+-    if (first)
+-    {
+-        sr_strbuf_append_strf(buffer, "-");
+-    }
+-}
+-
+-static void
+-fp_jump_equality(struct sr_strbuf *fingerprint,
+-                 char **instructions)
+-{
+-    static const char *mnemonics[] = {"je", "jne", "jz", "jnz", NULL};
+-    bool present = sr_disasm_instruction_present(instructions, mnemonics);
+-    fingerprint_add_bool(fingerprint, "j_eql", present);
+-}
+-
+-static void
+-fp_jump_signed(struct sr_strbuf *fingerprint,
+-               char **instructions)
+-{
+-    static const char *mnemonics[] =
+-        {"jg", "jl", "jnle", "jnge", "jng", "jnl", "jle", "jge", NULL};
+-
+-    bool present = sr_disasm_instruction_present(instructions, mnemonics);
+-    fingerprint_add_bool(fingerprint, "j_sgn", present);
+-}
+-
+-static void
+-fp_jump_unsigned(struct sr_strbuf *fingerprint,
+-                 char **instructions)
+-{
+-    static const char *mnemonics[] =
+-        {"ja", "jb", "jnae", "jnbe", "jna", "jnb", "jbe", "jae", NULL};
+-
+-    bool present = sr_disasm_instruction_present(instructions, mnemonics);
+-    fingerprint_add_bool(fingerprint, "j_usn", present);
+-}
+-
+-static void
+-fp_and_or(struct sr_strbuf *fingerprint,
+-          char **instructions)
+-{
+-    static const char *mnemonics[] = {"and", "or", NULL};
+-    bool present = sr_disasm_instruction_present(instructions, mnemonics);
+-    fingerprint_add_bool(fingerprint, "and_or", present);
+-}
+-
+-static void
+-fp_shift(struct sr_strbuf *fingerprint,
+-         char **instructions)
+-{
+-    static const char *mnemonics[] = {"shl", "shr", NULL};
+-    bool present = sr_disasm_instruction_present(instructions, mnemonics);
+-    fingerprint_add_bool(fingerprint, "shift", present);
+-}
+-
+-static void
+-fp_has_cycle(struct sr_strbuf *fingerprint,
+-             char **instructions,
+-             uint64_t function_start_address,
+-             uint64_t function_end_address)
+-{
+-    static const char *jmp_mnemonics[] =
+-      {"jmp", "jmpb", "jmpw", "jmpl", "jmpq", NULL};
+-
+-    bool found = false;
+-    while (*instructions)
+-    {
+-        if (!sr_disasm_instruction_is_one_of(*instructions,
+-                                              jmp_mnemonics))
+-        {
+-            ++instructions;
+-            continue;
+-        }
+-
+-        uint64_t target_address;
+-        if (!sr_disasm_instruction_parse_single_address_operand(
+-                *instructions, &target_address))
+-        {
+-            ++instructions;
+-            continue;
+-        }
+-
+-        if (function_start_address <= target_address &&
+-            target_address < function_end_address)
+-        {
+-            found = true;
+-            break;
+-        }
+-
+-        ++instructions;
+-    }
+-
+-    fingerprint_add_bool(fingerprint, "has_cycle", found);
+-}
+-
+-static bool
+-get_libcalls(char ***symbol_list,
+-             size_t *symbol_list_size,
+-             uint64_t function_start_address,
+-             int depth,
+-             struct sr_elf_plt_entry *plt,
+-             struct sr_elf_fde *eh_frame,
+-             struct sr_disasm_state *disassembler,
+-             struct sr_callgraph **callgraph,
+-             char **error_message)
+-{
+-    *callgraph = sr_callgraph_extend(*callgraph,
+-                                     function_start_address,
+-                                     disassembler,
+-                                     eh_frame,
+-                                     error_message);
+-
+-    if (!*callgraph)
+-    {
+-        *error_message = sr_asprintf(
+-            "Unable to extend callgraph for address 0x%"PRIx64,
+-            function_start_address);
+-
+-        return false;
+-    }
+-
+-    struct sr_callgraph *current =
+-        sr_callgraph_find(*callgraph, function_start_address);
+-
+-    if (!current)
+-    {
+-        *error_message = sr_asprintf(
+-            "Unable to find callgraph for address 0x%"PRIx64,
+-            function_start_address);
+-
+-        return false;
+-    }
+-
+-    /* Obtain the symbol names for called functions. */
+-    uint64_t *callees = current->callees;
+-    char **sub_symbol_list = NULL;
+-    size_t sub_symbol_list_size = 0;
+-    while (*callees)
+-    {
+-        struct sr_elf_plt_entry *plt_entry =
+-            sr_elf_plt_find_for_address(plt, *callees);
+-
+-        if (!plt_entry && depth > 0)
+-        {
+-            char **tmp_symbol_list;
+-            size_t tmp_symbol_list_size;
+-            bool success = get_libcalls(&tmp_symbol_list,
+-                                        &tmp_symbol_list_size,
+-                                        *callees,
+-                                        depth - 1,
+-                                        plt,
+-                                        eh_frame,
+-                                        disassembler,
+-                                        callgraph,
+-                                        error_message);
+-
+-            if (!success)
+-            {
+-                free(sub_symbol_list);
+-                return false;
+-            }
+-
+-            sub_symbol_list = sr_realloc_array(
+-                sub_symbol_list,
+-                sub_symbol_list_size + tmp_symbol_list_size,
+-                sizeof(char*));
+-
+-            memcpy(sub_symbol_list + sub_symbol_list_size,
+-                   tmp_symbol_list,
+-                   tmp_symbol_list_size * sizeof(char*));
+-
+-            sub_symbol_list_size += tmp_symbol_list_size;
+-            free(tmp_symbol_list);
+-        }
+-
+-        ++callees;
+-    }
+-
+-    /* Calculate the number of symbol names for the current
+-     * function. */
+-    callees = current->callees;
+-    *symbol_list_size = 0;
+-    while (*callees)
+-    {
+-        struct sr_elf_plt_entry *plt_entry =
+-            sr_elf_plt_find_for_address(plt, *callees);
+-
+-        if (plt_entry)
+-            ++(*symbol_list_size);
+-
+-        ++callees;
+-    }
+-
+-    /* Obtain the symbol names for the current function. */
+-    *symbol_list = sr_malloc_array(
+-        *symbol_list_size + sub_symbol_list_size, sizeof(char*));
+-
+-    char **item = *symbol_list;
+-    callees = current->callees;
+-    while (*callees)
+-    {
+-        struct sr_elf_plt_entry *plt_entry =
+-            sr_elf_plt_find_for_address(plt, *callees);
+-
+-        if (plt_entry)
+-        {
+-            *item = plt_entry->symbol_name;
+-            ++item;
+-        }
+-
+-        ++callees;
+-    }
+-
+-    memcpy(*symbol_list + *symbol_list_size,
+-           sub_symbol_list,
+-           sub_symbol_list_size * sizeof(char*));
+-
+-    *symbol_list_size += sub_symbol_list_size;
+-    return true;
+-}
+-
+-static bool
+-fp_libcalls(struct sr_strbuf *fingerprint,
+-            uint64_t function_start_address,
+-            struct sr_elf_plt_entry *plt,
+-            struct sr_elf_fde *eh_frame,
+-            struct sr_disasm_state *disassembler,
+-            struct sr_callgraph **callgraph,
+-            char **error_message)
+-{
+-    char **symbol_list;
+-    size_t symbol_list_size;
+-    bool success = get_libcalls(&symbol_list,
+-                                &symbol_list_size,
+-                                function_start_address,
+-                                0,
+-                                plt,
+-                                eh_frame,
+-                                disassembler,
+-                                callgraph,
+-                                error_message);
+-    if (!success)
+-        return false;
+-
+-    qsort(symbol_list, symbol_list_size,
+-          sizeof(char*), (comparison_fn_t)sr_ptrstrcmp);
+-
+-    /* Make it unique. */
+-    sr_struniq(symbol_list, &symbol_list_size);
+-
+-    /* Format the result */
+-    fingerprint_add_list(fingerprint,
+-                         "libcalls",
+-                         symbol_list,
+-                         symbol_list_size);
+-
+-    free(symbol_list);
+-    return true;
+-}
+-
+-static bool
+-fp_calltree_leaves(struct sr_strbuf *fingerprint,
+-                   uint64_t function_start_address,
+-                   struct sr_elf_plt_entry *plt,
+-                   struct sr_elf_fde *eh_frame,
+-                   struct sr_disasm_state *disassembler,
+-                   struct sr_callgraph **callgraph,
+-                   char **error_message)
+-{
+-    char **symbol_list;
+-    size_t symbol_list_size;
+-    bool success = get_libcalls(&symbol_list,
+-                                &symbol_list_size,
+-                                function_start_address,
+-                                6,
+-                                plt,
+-                                eh_frame,
+-                                disassembler,
+-                                callgraph,
+-                                error_message);
+-    if (!success)
+-        return false;
+-
+-    qsort(symbol_list, symbol_list_size,
+-          sizeof(char*), (comparison_fn_t)sr_ptrstrcmp);
+-
+-    /* Make it unique. */
+-    sr_struniq(symbol_list, &symbol_list_size);
+-
+-    /* Format the result */
+-    fingerprint_add_list(fingerprint,
+-                         "calltree_leaves",
+-                         symbol_list,
+-                         symbol_list_size);
+-
+-    free(symbol_list);
+-    return true;
+-}
+-
+-static void
+-do_nothing(void *something)
+-{
+-}
+ 
+ bool
+ sr_core_fingerprint_generate(struct sr_core_stacktrace *stacktrace,
+                              char **error_message)
+ {
+-    /* binary tree that works as a set of already processed binaries */
+-    void *processed_files = NULL;
+-    bool result = false;
+-
+-    struct sr_core_thread *thread = stacktrace->threads;
+-    while (thread)
+-    {
+-        struct sr_core_frame *frame = thread->frames;
+-        while (frame)
+-        {
+-            if (frame->file_name &&
+-                !tfind(frame->file_name, &processed_files, (comparison_fn_t)strcmp))
+-            {
+-                bool success = sr_core_fingerprint_generate_for_binary(
+-                    thread, frame->file_name, error_message);
+-
+-                result |= success;
+-
+-                /* add file_name to the set of already processed files */
+-                tsearch(frame->file_name, &processed_files, (comparison_fn_t)strcmp);
+-            }
+-
+-            frame = frame->next;
+-        }
+-
+-        thread = thread->next;
+-    }
+-
+-    tdestroy(processed_files, do_nothing);
+-
+-    return result;
+-}
+-
+-static bool
+-compute_fingerprint(struct sr_core_frame *frame,
+-                    struct sr_elf_plt_entry *plt,
+-                    struct sr_elf_fde *eh_frame,
+-                    struct sr_disasm_state *disassembler,
+-                    struct sr_callgraph **callgraph,
+-                    char **error_message)
+-{
+-    struct sr_elf_fde *fde =
+-        sr_elf_find_fde_for_offset(eh_frame, frame->build_id_offset);
+-
+-    if (!fde)
+-    {
+-        *error_message = sr_asprintf("No frame description entry found"
+-                                      " for an offset %"PRIu64".",
+-                                      frame->build_id_offset);
+-        return false;
+-    }
+-
+-    char **instructions =
+-        sr_disasm_get_function_instructions(disassembler,
+-                                            fde->exec_base + fde->start_address,
+-                                            fde->length,
+-                                            error_message);
+-
+-    if (!instructions)
+-        return false;
+-
+-/*    puts("BEGIN");
+-    char *binary = sr_disasm_binary_to_text(disassembler,
+-                                             fde->exec_base + fde->start_address,
+-                                             fde->length,
+-                                             error_message);
+-
+-    if (!binary)
+-        puts(*error_message);
+-
+-    printf("Function\n%s\n%s\n\n\n\n",
+-           sr_disasm_instructions_to_text(instructions),
+-           binary);
+-*/
+-    struct sr_strbuf *fingerprint = sr_strbuf_new();
+-    sr_strbuf_append_strf(fingerprint, "v1");
+-
+-    fp_jump_equality(fingerprint, instructions);
+-    fp_jump_signed(fingerprint, instructions);
+-    fp_jump_unsigned(fingerprint, instructions);
+-    fp_and_or(fingerprint, instructions);
+-    fp_shift(fingerprint, instructions);
+-    fp_has_cycle(fingerprint,
+-                 instructions,
+-                 fde->exec_base + fde->start_address,
+-                 fde->exec_base + fde->start_address + fde->length);
+-
+-    if (!fp_libcalls(fingerprint,
+-                     fde->exec_base + fde->start_address,
+-                     plt,
+-                     eh_frame,
+-                     disassembler,
+-                     callgraph,
+-                     error_message))
+-    {
+-        return false;
+-    }
+-
+-    if (!fp_calltree_leaves(fingerprint,
+-                            fde->exec_base + fde->start_address,
+-                            plt,
+-                            eh_frame,
+-                            disassembler,
+-                            callgraph,
+-                            error_message))
+-    {
+-        return false;
+-    }
+-
+-    frame->fingerprint = sr_strbuf_free_nobuf(fingerprint);
+-    frame->fingerprint_hashed = false;
+-    sr_disasm_instructions_free(instructions);
+-    return true;
+-}
+-
+-bool
+-sr_core_fingerprint_generate_for_binary(struct sr_core_thread *thread,
+-                                         const char *binary_path,
+-                                         char **error_message)
+-{
+-    /* Procedure Linkage Table */
+-    struct sr_elf_plt_entry *plt =
+-        sr_elf_get_procedure_linkage_table(binary_path,
+-                                            error_message);
+-
+-    if (!plt)
+-        return false;
+-
+-    struct sr_elf_fde *eh_frame =
+-        sr_elf_get_eh_frame(binary_path, error_message);
+-
+-    if (!eh_frame)
+-    {
+-        sr_elf_procedure_linkage_table_free(plt);
+-        return false;
+-    }
+-
+-    struct sr_disasm_state *disassembler =
+-        sr_disasm_init(binary_path, error_message);
+-
+-    if (!disassembler)
+-    {
+-        sr_elf_procedure_linkage_table_free(plt);
+-        sr_elf_eh_frame_free(eh_frame);
+-        return false;
+-    }
+-
+-    struct sr_callgraph *callgraph = NULL;
+-
+-    while (thread)
+-    {
+-        struct sr_core_frame *frame = thread->frames;
+-        while (frame)
+-        {
+-            if (!frame->fingerprint &&
+-                0 == sr_strcmp0(frame->file_name, binary_path))
+-            {
+-                bool success = compute_fingerprint(frame,
+-                                                   plt,
+-                                                   eh_frame,
+-                                                   disassembler,
+-                                                   &callgraph,
+-                                                   error_message);
+-
+-                if (!success)
+-                {
+-                    free(*error_message);
+-                    *error_message = NULL;
+-                }
+-            }
+-
+-            frame = frame->next;
+-        }
+-
+-        thread = thread->next;
+-    }
+-
+-    sr_callgraph_free(callgraph);
+-    sr_disasm_free(disassembler);
+-    sr_elf_procedure_linkage_table_free(plt);
+-    sr_elf_eh_frame_free(eh_frame);
+-    return true;
+-}
+-
+-#else // HAVE_LIBOPCODES
+-
+-bool
+-sr_core_fingerprint_generate(struct sr_core_stacktrace *stacktrace,
+-                             char **error_message)
+-{
+-    *error_message = sr_strdup("satyr compiled without libopcodes");
++    *error_message = sr_strdup("fingerprint support has been deprecated");
+     return false;
+ }
+ 
+@@ -571,38 +35,11 @@
+                                         const char *binary_path,
+                                         char **error_message)
+ {
+-    *error_message = sr_strdup("satyr compiled without libopcodes");
++    *error_message = sr_strdup("fingerprint support has been deprecated");
+     return false;
+ }
+ 
+-#endif // HAVE_LIBOPCODES
+-
+-static void
+-hash_frame (struct sr_core_frame *frame)
+-{
+-    if (!frame->fingerprint)
+-        return;
+-
+-    char *hash = sr_sha1_hash_string(frame->fingerprint);
+-    free(frame->fingerprint);
+-    frame->fingerprint = hash;
+-    frame->fingerprint_hashed = true;
+-}
+-
+ void
+ sr_core_fingerprint_hash(struct sr_core_stacktrace *stacktrace)
+ {
+-    struct sr_core_thread *thread = stacktrace->threads;
+-    while (thread)
+-    {
+-        struct sr_core_frame *frame = thread->frames;
+-        while (frame)
+-        {
+-            hash_frame(frame);
+-
+-            frame = frame->next;
+-        }
+-
+-        thread = thread->next;
+-    }
+ }
+diff -urN satyr-0.16/lib/Makefile.am satyr-0.16.2.g5cb0/lib/Makefile.am
+--- satyr-0.16/lib/Makefile.am	2015-02-18 14:04:55.000000000 +0100
++++ satyr-0.16.2.g5cb0/lib/Makefile.am	2015-04-15 11:40:16.000000000 +0200
+@@ -67,12 +67,6 @@
+ libsatyr_conv_la_CFLAGS = -Wall -Wformat=2 -std=gnu99 -D_GNU_SOURCE -I$(top_srcdir)/include $(GLIB_CFLAGS)
+ libsatyr_conv_la_LDFLAGS = $(GLIB_LIBS)
+ 
+-if HAVE_LIBOPCODES
+-# Conditional link is required to avoid linking to a library without
+-# -fPIC.
+-libsatyr_conv_la_LIBADD = -lopcodes
+-endif
+-
+ lib_LTLIBRARIES = libsatyr.la
+ libsatyr_la_SOURCES = 
+ libsatyr_la_LIBADD = libsatyr_conv.la
+diff -urN satyr-0.16/lib/Makefile.in satyr-0.16.2.g5cb0/lib/Makefile.in
+--- satyr-0.16/lib/Makefile.in	2015-02-19 12:23:14.000000000 +0100
++++ satyr-0.16.2.g5cb0/lib/Makefile.in	2015-04-15 11:45:03.000000000 +0200
+@@ -140,7 +140,7 @@
+ libsatyr_la_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+ 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+ 	$(libsatyr_la_LDFLAGS) $(LDFLAGS) -o $@
+-libsatyr_conv_la_DEPENDENCIES =
++libsatyr_conv_la_LIBADD =
+ am_libsatyr_conv_la_OBJECTS = libsatyr_conv_la-abrt.lo \
+ 	libsatyr_conv_la-callgraph.lo libsatyr_conv_la-cluster.lo \
+ 	libsatyr_conv_la-core_stacktrace.lo \
+@@ -429,10 +429,6 @@
+ 
+ libsatyr_conv_la_CFLAGS = -Wall -Wformat=2 -std=gnu99 -D_GNU_SOURCE -I$(top_srcdir)/include $(GLIB_CFLAGS)
+ libsatyr_conv_la_LDFLAGS = $(GLIB_LIBS)
+-
+-# Conditional link is required to avoid linking to a library without
+-# -fPIC.
+-@HAVE_LIBOPCODES_TRUE@libsatyr_conv_la_LIBADD = -lopcodes
+ lib_LTLIBRARIES = libsatyr.la
+ libsatyr_la_SOURCES = 
+ libsatyr_la_LIBADD = libsatyr_conv.la

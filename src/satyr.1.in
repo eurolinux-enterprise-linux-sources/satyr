@@ -1,0 +1,29 @@
+.TH SATYR "1" "2013-03-18" "@PACKAGE_STRING@"
+.SH NAME
+satyr \- create and manipulate problem reports
+.SH SYNOPSIS
+.B satyr
+<command> [option...]
+.SH DESCRIPTION
+.I satyr
+is a command line tool that creates anonymous reports of software problems that
+are suitable for automated processing.
+
+The tool has to be invoked with a
+.I <command>
+that specifies the action to be performed. The available commands are
+documented below.
+
+.SH OPTIONS
+.B Commands
+.IP "abrt\-print\-report\-from\-dir <directory>"
+
+Creates report from ABRT problem directory
+.I directory
+and prints it to standard output.
+
+.IP "abrt\-create\-core\-stacktrace <directory>"
+
+Creates stacktrace from ABRT problem directory
+.I directory
+that contains a core dump.
