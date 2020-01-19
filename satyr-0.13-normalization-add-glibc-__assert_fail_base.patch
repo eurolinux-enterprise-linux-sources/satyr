@@ -1,0 +1,24 @@
+From ae3890bb65dfd13c4dd1a52b2f9fb1d1a3515253 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marek=20Bry=C5=A1a?= <mbrysa@redhat.com>
+Date: Wed, 27 May 2015 13:56:12 +0200
+Subject: [PATCH] normalization: add glibc __assert_fail_base
+
+---
+ lib/normalize.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/lib/normalize.c b/lib/normalize.c
+index 0e9b497..4b22645 100644
+--- a/lib/normalize.c
++++ b/lib/normalize.c
+@@ -193,6 +193,7 @@ is_removable_glibc_with_above(const char *function_name,
+ {
+     return
+         call_match(function_name, source_file, "__assert_fail", "", NULL) ||
++        call_match(function_name, source_file, "__assert_fail_base", "", NULL) ||
+         call_match(function_name, source_file, "__chk_fail", "", NULL) ||
+         call_match(function_name, source_file, "__longjmp_chk", "", NULL) ||
+         call_match(function_name, source_file, "__malloc_assert", "", NULL) ||
+-- 
+1.8.3.1
+
