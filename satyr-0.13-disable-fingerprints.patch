@@ -1,0 +1,98 @@
+From 58e874e4a28ce00623db208475b0d9fd22d601ac Mon Sep 17 00:00:00 2001
+From: Martin Milata <mmilata@redhat.com>
+Date: Tue, 14 Jan 2014 13:40:45 +0100
+Subject: [SATYR PATCH 3/3] abrt: disable fingerprinting of core stacktraces
+
+Closes rhbz#1052402.
+
+Signed-off-by: Martin Milata <mmilata@redhat.com>
+---
+ include/abrt.h         |  2 ++
+ lib/abrt.c             |  2 ++
+ lib/core_fingerprint.c | 25 +++++++++++++++++++++++++
+ 3 files changed, 29 insertions(+)
+
+diff --git a/include/abrt.h b/include/abrt.h
+index 1ef7876..0a8f5ac 100644
+--- a/include/abrt.h
++++ b/include/abrt.h
+@@ -31,6 +31,8 @@ bool
+ sr_abrt_print_report_from_dir(const char *directory,
+                               char **error_message);
+ 
++/* NOTE: the hash_fingerprints argument has no effect because fingerprint
++ * generation is disabled. */
+ bool
+ sr_abrt_create_core_stacktrace(const char *directory,
+                                bool hash_fingerprints,
+diff --git a/lib/abrt.c b/lib/abrt.c
+index 8c006fa..39bc45d 100644
+--- a/lib/abrt.c
++++ b/lib/abrt.c
+@@ -87,11 +87,13 @@ create_core_stacktrace(const char *directory, const char *gdb_output,
+     if (!core_stacktrace)
+         return false;
+ 
++#if 0
+     sr_core_fingerprint_generate(core_stacktrace,
+                                  error_message);
+ 
+     if (hash_fingerprints)
+         sr_core_fingerprint_hash(core_stacktrace);
++#endif
+ 
+     char *json = sr_core_stacktrace_to_json(core_stacktrace);
+ 
+diff --git a/lib/core_fingerprint.c b/lib/core_fingerprint.c
+index 8c5a228..3c7b5ba 100644
+--- a/lib/core_fingerprint.c
++++ b/lib/core_fingerprint.c
+@@ -17,6 +17,8 @@
+     with this program; if not, write to the Free Software Foundation, Inc.,
+     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
++#include "config.h"
++
+ #include "core/fingerprint.h"
+ #include "core/stacktrace.h"
+ #include "core/frame.h"
+@@ -33,6 +35,8 @@
+ #include <stdlib.h>
+ #include <search.h>
+ 
++#if HAVE_LIBOPCODES
++
+ static void
+ fingerprint_add_bool(struct sr_strbuf *buffer,
+                      const char *name,
+@@ -552,6 +556,27 @@ sr_core_fingerprint_generate_for_binary(struct sr_core_thread *thread,
+     return true;
+ }
+ 
++#else // HAVE_LIBOPCODES
++
++bool
++sr_core_fingerprint_generate(struct sr_core_stacktrace *stacktrace,
++                             char **error_message)
++{
++    *error_message = sr_strdup("satyr compiled without libopcodes");
++    return false;
++}
++
++bool
++sr_core_fingerprint_generate_for_binary(struct sr_core_thread *thread,
++                                        const char *binary_path,
++                                        char **error_message)
++{
++    *error_message = sr_strdup("satyr compiled without libopcodes");
++    return false;
++}
++
++#endif // HAVE_LIBOPCODES
++
+ static void
+ hash_frame (struct sr_core_frame *frame)
+ {
+-- 
+1.8.3.1
+

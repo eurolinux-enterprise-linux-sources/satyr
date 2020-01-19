@@ -1,0 +1,15 @@
+# @configure_input@                                     -*- shell-script -*-
+# Configurable variable values for satyr test suite.
+
+# We need a C compiler.
+CC='@CC@'
+LIBTOOL="$abs_top_builddir/libtool"
+
+# We want no optimization.
+CFLAGS="@O0CFLAGS@ -I$abs_top_builddir/tests -I$abs_top_builddir/include -I$abs_top_builddir/lib -D_GNU_SOURCE"
+
+# Are special link options needed?
+LDFLAGS="@LDFLAGS@ $abs_top_builddir/lib/libsatyr.la"
+
+# Are special libraries needed?
+LIBS="@LIBS@"

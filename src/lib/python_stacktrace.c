@@ -1,0 +1,300 @@
+/*
+    python_stacktrace.c
+
+    Copyright (C) 2012  Red Hat, Inc.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License along
+    with this program; if not, write to the Free Software Foundation, Inc.,
+    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+*/
+#include "python/stacktrace.h"
+#include "python/frame.h"
+#include "location.h"
+#include "utils.h"
+#include "json.h"
+#include "sha1.h"
+#include "report_type.h"
+#include "strbuf.h"
+#include "generic_stacktrace.h"
+#include "generic_thread.h"
+#include "internal_utils.h"
+#include <stdio.h>
+#include <string.h>
+#include <inttypes.h>
+
+/* Method tables */
+
+static void
+python_append_bthash_text(struct sr_python_stacktrace *stacktrace, enum sr_bthash_flags flags,
+                          struct sr_strbuf *strbuf);
+
+DEFINE_FRAMES_FUNC(python_frames, struct sr_python_stacktrace)
+DEFINE_SET_FRAMES_FUNC(python_set_frames, struct sr_python_stacktrace)
+DEFINE_PARSE_WRAPPER_FUNC(python_parse, SR_REPORT_PYTHON)
+
+struct thread_methods python_thread_methods =
+{
+    .frames = (frames_fn_t) python_frames,
+    .set_frames = (set_frames_fn_t) python_set_frames,
+    .cmp = (thread_cmp_fn_t) NULL,
+    .frame_count = (frame_count_fn_t) thread_frame_count,
+    .next = (next_thread_fn_t) thread_no_next_thread,
+    .set_next = (set_next_thread_fn_t) NULL,
+    .thread_append_bthash_text =
+        (thread_append_bthash_text_fn_t) thread_no_bthash_text,
+    .thread_free = (thread_free_fn_t) sr_python_stacktrace_free,
+    .remove_frame = (remove_frame_fn_t) thread_remove_frame,
+    .remove_frames_above =
+        (remove_frames_above_fn_t) thread_remove_frames_above,
+    .thread_dup = (thread_dup_fn_t) sr_python_stacktrace_dup,
+    .normalize = (normalize_fn_t) thread_no_normalization,
+};
+
+struct stacktrace_methods python_stacktrace_methods =
+{
+    .parse = (parse_fn_t) python_parse,
+    .parse_location = (parse_location_fn_t) sr_python_stacktrace_parse,
+    .to_short_text = (to_short_text_fn_t) stacktrace_to_short_text,
+    .to_json = (to_json_fn_t) sr_python_stacktrace_to_json,
+    .from_json = (from_json_fn_t) sr_python_stacktrace_from_json,
+    .get_reason = (get_reason_fn_t) sr_python_stacktrace_get_reason,
+    .find_crash_thread = (find_crash_thread_fn_t) stacktrace_one_thread_only,
+    .threads = (threads_fn_t) stacktrace_one_thread_only,
+    .set_threads = (set_threads_fn_t) NULL,
+    .stacktrace_free = (stacktrace_free_fn_t) sr_python_stacktrace_free,
+    .stacktrace_append_bthash_text =
+        (stacktrace_append_bthash_text_fn_t) python_append_bthash_text,
+};
+
+/* Public functions */
+
+struct sr_python_stacktrace *
+sr_python_stacktrace_new()
+{
+    struct sr_python_stacktrace *stacktrace =
+        sr_malloc(sizeof(struct sr_python_stacktrace));
+
+    sr_python_stacktrace_init(stacktrace);
+    return stacktrace;
+}
+
+void
+sr_python_stacktrace_init(struct sr_python_stacktrace *stacktrace)
+{
+    memset(stacktrace, 0, sizeof(struct sr_python_stacktrace));
+    stacktrace->type = SR_REPORT_PYTHON;
+}
+
+void
+sr_python_stacktrace_free(struct sr_python_stacktrace *stacktrace)
+{
+    if (!stacktrace)
+        return;
+
+    free(stacktrace);
+}
+
+struct sr_python_stacktrace *
+sr_python_stacktrace_dup(struct sr_python_stacktrace *stacktrace)
+{
+    struct sr_python_stacktrace *result = sr_python_stacktrace_new();
+    memcpy(result, stacktrace, sizeof(struct sr_python_stacktrace));
+
+    if (result->exception_name)
+        result->exception_name = sr_strdup(result->exception_name);
+
+    if (result->frames)
+        result->frames = sr_python_frame_dup(result->frames, true);
+
+    return result;
+}
+
+struct sr_python_stacktrace *
+sr_python_stacktrace_parse(const char **input,
+                           struct sr_location *location)
+{
+    const char *local_input = *input;
+
+    /* Parse the header. */
+    if (sr_skip_char(&local_input, '\n'))
+        location->column += 1;
+
+    const char *HEADER = "Traceback (most recent call last):\n";
+    local_input = sr_strstr_location(local_input,
+                                     HEADER,
+                                     &location->line,
+                                     &location->column);
+
+    if (!local_input)
+    {
+        location->message = "Traceback header not found.";
+        return NULL;
+    }
+
+    local_input += strlen(HEADER);
+    location->line += 2;
+    location->column = 0;
+
+    struct sr_python_stacktrace *stacktrace = sr_python_stacktrace_new();
+
+    /* Read the frames. */
+    struct sr_python_frame *frame;
+    struct sr_location frame_location;
+    sr_location_init(&frame_location);
+    while ((frame = sr_python_frame_parse(&local_input, &frame_location)))
+    {
+        /*
+         * Python stacktraces are in reverse order than other types - we
+         * reverse it here by prepending each frame to the list instead of
+         * appending it.
+         */
+        frame->next = stacktrace->frames;
+        stacktrace->frames = frame;
+
+        sr_location_add(location,
+                        frame_location.line,
+                        frame_location.column);
+    }
+
+    if (!stacktrace->frames)
+    {
+        location->message = frame_location.message;
+        sr_python_stacktrace_free(stacktrace);
+        return NULL;
+    }
+
+    /* Parse exception name. */
+    sr_parse_char_cspan(&local_input,
+                        ":\n",
+                        &stacktrace->exception_name);
+
+    *input = local_input;
+    return stacktrace;
+}
+
+char *
+sr_python_stacktrace_to_json(struct sr_python_stacktrace *stacktrace)
+{
+    struct sr_strbuf *strbuf = sr_strbuf_new();
+
+    /* Exception class name. */
+    if (stacktrace->exception_name)
+    {
+        sr_strbuf_append_str(strbuf, ",   \"exception_name\": ");
+        sr_json_append_escaped(strbuf, stacktrace->exception_name);
+        sr_strbuf_append_str(strbuf, "\n");
+    }
+
+    /* Frames. */
+    if (stacktrace->frames)
+    {
+        struct sr_python_frame *frame = stacktrace->frames;
+        sr_strbuf_append_str(strbuf, ",   \"stacktrace\":\n");
+        while (frame)
+        {
+            if (frame == stacktrace->frames)
+                sr_strbuf_append_str(strbuf, "      [ ");
+            else
+                sr_strbuf_append_str(strbuf, "      , ");
+
+            char *frame_json = sr_python_frame_to_json(frame);
+            char *indented_frame_json = sr_indent_except_first_line(frame_json, 8);
+            sr_strbuf_append_str(strbuf, indented_frame_json);
+            free(indented_frame_json);
+            free(frame_json);
+            frame = frame->next;
+            if (frame)
+                sr_strbuf_append_str(strbuf, "\n");
+        }
+
+        sr_strbuf_append_str(strbuf, " ]\n");
+    }
+
+    if (strbuf->len > 0)
+        strbuf->buf[0] = '{';
+    else
+        sr_strbuf_append_char(strbuf, '{');
+
+    sr_strbuf_append_char(strbuf, '}');
+    return sr_strbuf_free_nobuf(strbuf);
+}
+
+struct sr_python_stacktrace *
+sr_python_stacktrace_from_json(struct sr_json_value *root, char **error_message)
+{
+    if (!JSON_CHECK_TYPE(root, SR_JSON_OBJECT, "stacktrace"))
+        return NULL;
+
+    struct sr_python_stacktrace *result = sr_python_stacktrace_new();
+
+    /* Exception name. */
+    if (!JSON_READ_STRING(root, "exception_name", &result->exception_name))
+        goto fail;
+
+    /* Frames. */
+    struct sr_json_value *stacktrace = json_element(root, "stacktrace");
+    if (stacktrace)
+    {
+        if (!JSON_CHECK_TYPE(stacktrace, SR_JSON_ARRAY, "stacktrace"))
+            goto fail;
+
+        struct sr_json_value *frame_json;
+        FOR_JSON_ARRAY(stacktrace, frame_json)
+        {
+            struct sr_python_frame *frame = sr_python_frame_from_json(frame_json,
+                error_message);
+
+            if (!frame)
+                goto fail;
+
+            result->frames = sr_python_frame_append(result->frames, frame);
+        }
+    }
+
+    return result;
+
+fail:
+    sr_python_stacktrace_free(result);
+    return NULL;
+}
+
+char *
+sr_python_stacktrace_get_reason(struct sr_python_stacktrace *stacktrace)
+{
+    char *exc = "Unknown error";
+    char *file = "<unknown>";
+    uint32_t line = 0;
+
+    struct sr_python_frame *frame = stacktrace->frames;
+    while (frame && frame->next)
+        frame = frame->next;
+
+    if (frame)
+    {
+        file = frame->file_name;
+        line = frame->file_line;
+    }
+
+    if (stacktrace->exception_name)
+        exc = stacktrace->exception_name;
+
+    return sr_asprintf("%s in %s:%"PRIu32, exc, file, line);
+}
+
+static void
+python_append_bthash_text(struct sr_python_stacktrace *stacktrace, enum sr_bthash_flags flags,
+                          struct sr_strbuf *strbuf)
+{
+    sr_strbuf_append_strf(strbuf, "Exception: %s\n", OR_UNKNOWN(stacktrace->exception_name));
+    sr_strbuf_append_char(strbuf, '\n');
+}

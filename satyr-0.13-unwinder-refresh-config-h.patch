@@ -1,0 +1,31 @@
+diff -ur satyr-0.13/configure satyr-0.13-patched/configure
+--- satyr-0.13/configure	2014-01-22 18:44:45.710649231 +0100
++++ satyr-0.13-patched/configure	2014-01-22 18:40:12.606671169 +0100
+@@ -13261,10 +13255,10 @@
+ 
+ fi
+ 
+-ac_fn_c_check_func "$LINENO" "dwfl_frame_state_core" "ac_cv_func_dwfl_frame_state_core"
+-if test "x$ac_cv_func_dwfl_frame_state_core" = xyes; then :
++ac_fn_c_check_func "$LINENO" "dwfl_getthreads" "ac_cv_func_dwfl_getthreads"
++if test "x$ac_cv_func_dwfl_getthreads" = xyes; then :
+ 
+-$as_echo "#define HAVE_DWFL_FRAME_STATE_CORE /**/" >>confdefs.h
++$as_echo "#define HAVE_DWFL_NEXT_THREAD /**/" >>confdefs.h
+ 
+ fi
+ 
+diff -ur satyr-0.13/lib/config.h.in satyr-0.13-patched/lib/config.h.in
+--- satyr-0.13/lib/config.h.in	2014-01-22 18:44:45.796649204 +0100
++++ satyr-0.13-patched/lib/config.h.in	2014-01-22 18:40:13.001671173 +0100
+@@ -6,8 +6,8 @@
+ /* Define to 1 if you have the <dwarf.h> header file. */
+ #undef HAVE_DWARF_H
+ 
+-/* Have function dwfl_frame_state_core for coredump unwinding */
+-#undef HAVE_DWFL_FRAME_STATE_CORE
++/* Have function dwfl_getthreads for coredump unwinding */
++#undef HAVE_DWFL_NEXT_THREAD
+ 
+ /* Define to 1 if you have the <elfutils/libdwfl.h> header file. */
+ #undef HAVE_ELFUTILS_LIBDWFL_H

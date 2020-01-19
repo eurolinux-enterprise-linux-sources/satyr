@@ -1,0 +1,49 @@
+From d34232858880672a9e6b88ff5ebd966969aabb9f Mon Sep 17 00:00:00 2001
+From: Jakub Filak <jfilak@redhat.com>
+Date: Mon, 7 Sep 2015 08:08:16 +0200
+Subject: [PATCH] core_unwind: fix the missing frame build_id and file_name
+
+The documentation of dwfl_module_build_id() says:
+
+  This returns 0 when the module's main ELF file has not yet been loaded
+  and its build ID bits were not reported.  To ensure the ID is always
+  returned when determinable, call dwfl_module_getelf first.
+
+  /usr/include/elfutils/libdwfl.h
+
+ABRT upstream commit 88c6b3683a129c0e369071204b29fbca94772d3b verifies
+this patch.
+
+Discovered by Richard Marko <rmarko@redhat.com>
+Resolved by Mark Wielaard <mjw@redhat.com>
+
+Related: #1210599
+
+Signed-off-by: Jakub Filak <jfilak@redhat.com>
+---
+ lib/core_unwind.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/lib/core_unwind.c b/lib/core_unwind.c
+index cf9973a..c30f9db 100644
+--- a/lib/core_unwind.c
++++ b/lib/core_unwind.c
+@@ -278,9 +278,14 @@ resolve_frame(Dwfl *dwfl, Dwarf_Addr ip, bool minus_one)
+         int ret;
+         const unsigned char *build_id_bits;
+         const char *filename, *funcname;
+-        GElf_Addr bid_addr;
++        GElf_Addr bias, bid_addr;
+         Dwarf_Addr start;
+ 
++        /* Initialize the module's main Elf for dwfl_module_build_id and dwfl_module_info */
++        /* No need to deallocate the variable 'bias' and the return value.*/
++        if (NULL == dwfl_module_getelf(mod, &bias))
++            warn("The module's main Elf was not found");
++
+         ret = dwfl_module_build_id(mod, &build_id_bits, &bid_addr);
+         if (ret > 0)
+         {
+-- 
+2.4.3
+

@@ -1,0 +1,94 @@
+From f8be518c5d8534f8724c752c6ad95b3e61460a7b Mon Sep 17 00:00:00 2001
+From: Martin Milata <mmilata@redhat.com>
+Date: Mon, 24 Nov 2014 14:34:09 +0100
+Subject: [PATCH 2/5] unwind: minor refactoring
+
+Related to abrt/abrt#829.
+
+Signed-off-by: Martin Milata <mmilata@redhat.com>
+---
+ lib/core_unwind.c          |  2 +-
+ lib/core_unwind_elfutils.c | 24 +++++++++++++++---------
+ lib/internal_unwind.h      |  6 ++++++
+ 3 files changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/lib/core_unwind.c b/lib/core_unwind.c
+index 8b7cc22..48d5ca5 100644
+--- a/lib/core_unwind.c
++++ b/lib/core_unwind.c
+@@ -127,7 +127,7 @@ find_elf_core (Dwfl_Module *mod, void **userdata, const char *modname,
+ }
+ 
+ /* Do not use debuginfo files at all. */
+-static int
++int
+ find_debuginfo_none (Dwfl_Module *mod, void **userdata, const char *modname,
+                      GElf_Addr base, const char *file_name,
+                      const char *debuglink_file, GElf_Word debuglink_crc,
+diff --git a/lib/core_unwind_elfutils.c b/lib/core_unwind_elfutils.c
+index bbd4813..8351ebf 100644
+--- a/lib/core_unwind_elfutils.c
++++ b/lib/core_unwind_elfutils.c
+@@ -77,6 +77,19 @@ frame_callback(Dwfl_Frame *frame, void *data)
+     return DWARF_CB_OK;
+ }
+ 
++static void
++truncate_long_thread(struct sr_core_thread *thread, struct frame_callback_arg *frame_arg)
++{
++    /* Truncate the stacktrace to FRAME_LIMIT least recent frames. */
++    while (thread->frames && frame_arg->nframes > FRAME_LIMIT)
++    {
++        struct sr_core_frame *old_frame = thread->frames;
++        thread->frames = old_frame->next;
++        sr_core_frame_free(old_frame);
++        frame_arg->nframes--;
++    }
++}
++
+ static int
+ unwind_thread(Dwfl_Thread *thread, void *data)
+ {
+@@ -86,7 +99,7 @@ unwind_thread(Dwfl_Thread *thread, void *data)
+     struct sr_core_thread *result = sr_core_thread_new();
+     if (!result)
+     {
+-        set_error("Failed to initialize stacktrace memory");
++        set_error("Failed to initialize thread memory");
+         return DWARF_CB_ABORT;
+     }
+     result->id = (int64_t)dwfl_thread_tid(thread);
+@@ -121,14 +134,7 @@ unwind_thread(Dwfl_Thread *thread, void *data)
+         goto abort;
+     }
+ 
+-    /* Truncate the stacktrace to FRAME_LIMIT least recent frames. */
+-    while (result->frames && frame_arg.nframes > FRAME_LIMIT)
+-    {
+-        struct sr_core_frame *old_frame = result->frames;
+-        result->frames = old_frame->next;
+-        sr_core_frame_free(old_frame);
+-        frame_arg.nframes--;
+-    }
++    truncate_long_thread(result, &frame_arg);
+ 
+     *thread_arg->threads_tail = result;
+     thread_arg->threads_tail = &result->next;
+diff --git a/lib/internal_unwind.h b/lib/internal_unwind.h
+index 2c9abb7..84261c6 100644
+--- a/lib/internal_unwind.h
++++ b/lib/internal_unwind.h
+@@ -96,4 +96,10 @@ resolve_frame(Dwfl *dwfl, Dwarf_Addr ip, bool minus_one);
+ short
+ get_signal_number(Elf *e, const char *elf_file);
+ 
++int
++find_debuginfo_none (Dwfl_Module *mod, void **userdata, const char *modname,
++                     GElf_Addr base, const char *file_name,
++                     const char *debuglink_file, GElf_Word debuglink_crc,
++                     char **debuginfo_file_name);
++
+ #endif /* SATYR_INTERNAL_UNWIND_H */
+-- 
+2.4.3
+

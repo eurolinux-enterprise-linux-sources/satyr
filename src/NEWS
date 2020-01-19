@@ -1,0 +1,57 @@
+satyr 0.13
+==========
+Kerneloops parser extended to ppc64 and s390 koopses. ABRT-compatible
+implementation of kerneloops hashing.
+
+satyr 0.12
+==========
+JVM frames normalization. C++ symbol demangling. Configure option to build
+python module with statically linked libsatyr. Improvements to openSUSE
+compatibility. Several bugfixes including malformed Java uReports.
+
+satyr 0.11
+==========
+Make all python objects hashable and extend the list of normalized functions.
+Several bugfixes.
+
+satyr 0.10
+==========
+Add support for multiple koops stacks. Several bugfixes.
+
+satyr 0.9
+=========
+Enrich koops uReport data with koops text and kernel version. Improve koops
+modules handling.
+
+satyr 0.8
+=========
+Added support for json de/serialization of reports and stacktraces.
+
+satyr 0.7
+=========
+Fix segmentation fault related to crash thread detection.
+
+satyr 0.6
+=========
+Do not export internal function symbols.
+
+satyr 0.5
+=========
+Added function that creates core stacktrace from GDB output. Several bugfixes.
+
+satyr 0.4
+=========
+Added missing features needed by ABRT. Support for uReport2. Major changes in
+both C and Python API.
+
+satyr 0.3
+=========
+Bug fixes, build fixes for older systems.
+
+satyr 0.2
+=========
+Documentation cleanup, build fixes.
+
+satyr 0.1
+=========
+Initial release based on btparser 0.18.
