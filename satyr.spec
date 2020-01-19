@@ -19,7 +19,7 @@
 
 Name: satyr
 Version: 0.13
-Release: 15%{?dist}
+Release: 4%{?dist}
 Summary: Tools to create anonymous, machine-friendly problem reports
 Group: System Environment/Libraries
 License: GPLv2+
@@ -38,77 +38,10 @@ BuildRequires: gcc-c++
 BuildRequires: python-sphinx
 %endif
 
-# git is need for '%%autosetup -S git' which automatically applies all the
-# patches above. Please, be aware that the patches must be generated
-# by 'git format-patch'
-BuildRequires: git
-
 Patch0: satyr-0.13-elfutils-0.158.patch
 Patch1: satyr-0.13-elfutils-unwinder.patch
 Patch2: satyr-0.13-disable-fingerprints.patch
 Patch3: satyr-0.13-unwinder-refresh-config-h.patch
-
-# 1142856, minor bugs found by static analyzer
-Patch4: satyr-0.13-static-analyzer-bugs.patch
-
-# 1123262, empty duphash of unreliable koops
-Patch5: satyr-0.13-koops-unreliable-frames.patch
-
-# 1142339, python exception parsing
-Patch6: satyr-0.13-python-exceptions.patch
-
-# 1142338, ppc64 backtrace parsing
-Patch7: satyr-0.13-ppc64-backtrace-parsing.patch
-
-# 1142346, limit stacktrace depth
-Patch8: satyr-0.13-limit-stacktrace-depth.patch
-
-# 1139555, ureport auth support
-Patch9: satyr-0.13-ureport-auth-support.patch
-
-# 1034857, ignore java suppressed exceptions
-Patch10: satyr-0.13-java-suppressed-exceptions.patch
-
-# 1147952, don't free gdb stacktrace on method failure
-Patch11: satyr-0.13-dont-free-gdb-stacktrace.patch
-
-# 1142346, better handling of infinite recursion
-Patch12: satyr-0.13-better-inf-recursion-handling.patch
-
-# 1210599, add functionality to generate a backtrace without saving a coredump
-Patch13: satyr-0.13-fulfill-missing-values-in-core-frames.patch
-Patch14: satyr-0.13-unwind-minor-refactoring.patch
-Patch15: satyr-0.13-support-unwinding-from-core-hook.patch
-Patch16: satyr-0.13-debug-unwinding-from-core-hook-using-satyr-binary.patch
-Patch17: satyr-0.13-disable-hook-unwind-on-kernels-w-o-PTRACE_SEIZE.patch
-Patch18: satyr-0.13-abrt-refactorize-unwinding-from-core-hook.patch
-Patch19: satyr-0.13-core_unwind-fix-the-missing-frame-build_id-and-file.patch
-
-# 1334604, add support for Ruby
-Patch20: satyr-0.13-Add-support-for-Ruby-report-type.patch
-Patch21: satyr-0.13-python-add-Ruby-support.patch
-
-# 1332869, actualize list of normalization function in satyr
-Patch22: satyr-0.13-normalize-extend-xorg-blacklist.patch
-Patch23: satyr-0.13-normalization-additional-X-GDK-functions.patch
-Patch24: satyr-0.13-normalization-add-glibc-__assert_fail_base.patch
-Patch25: satyr-0.13-normalization-add-glibc-__libc_fatal.patch
-Patch26: satyr-0.13-normalization-normalize-out-exit-frames.patch
-Patch27: satyr-0.13-normalization-actualize-list-of-functions.patch
-
-# 1334604, add support for Ruby testsuite fix
-Patch28: satyr-0.13-tests-fix-failure-on-gcc5-on-x86_64.patch
-
-# 1336390, fix defects found by coverity
-Patch29: satyr-0.13-Fix-defects-found-by-coverity.patch
-Patch30: satyr-0.13-Check-the-return-value-of-sr_parse_char_cspan.patch
-
-# 1342469, support for VARIANT and VARIANT_ID
-Patch31: satyr-0.13-os-add-support-for-OS-Variant.patch
-
-# 1260074, Incorrectly unwinding core_backtrace for stack overflow (aarch64)
-Patch32: satyr-0.13-Honor-frame-number-limit-in-GDB-core-unwinder.patch
-Patch33: satyr-0.13-testsuite-add-test-for-limit-frame-number-in-GDB-cor.patch
 
 %description
 Satyr is a library that can be used to create and process microreports.
@@ -136,16 +69,13 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 Python bindings for %{name}.
 
 %prep
-# http://www.rpm.org/wiki/PackagerDocs/Autosetup
-# Default '__scm_apply_git' is 'git apply && git commit' but this workflow
-# doesn't allow us to create a new file within a patch, so we have to use
-# 'git am' (see /usr/lib/rpm/macros for more details)
-%define __scm_apply_git(qp:m:) %{__git} am
-%autosetup -S git
+%setup -q
+%patch0 -p1
+%patch1 -p1
+%patch2 -p1
+%patch3 -p1
 
 %build
-autoreconf
-
 %configure \
 %if ! %{?enable_python_manpage}
         --disable-python-manpage \
@@ -161,13 +91,7 @@ make install DESTDIR=%{buildroot}
 find %{buildroot} -name "*.la" | xargs rm --
 
 %check
-make check || {
-    # find and print the logs of failed test
-    # do not cat tests/testsuite.log because it contains a lot of bloat
-    find tests -name "testsuite.log" -print -exec cat '{}' \;
-    exit 1
-}
-
+make check
 
 %post -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
@@ -192,64 +116,6 @@ make check || {
 %endif
 
 %changelog
-* Tue Jun 19 2018 Matej Marusak <mmarusak@redhat.com> - 0.13-15
-- Honor frame number limit in GDB core unwinder
-  - Related: #1260074
-
-* Mon Jun 06 2016 Matej Habrnal <mhabrnal@redhat.com> - 0.13-14
-- add support for OS Variant
-  - Related: #1342469
-
-* Thu May 12 2016 Matej Habrnal <mhabrnal@redhat.com> - 0.13-13
-- add support for Ruby
-  - Related: #1334604
-- actualize list of normalization function in satyr
-  - Related: #1332869
-- fix defects found by coverity
-  - Related: #1336390
-
-* Wed Sep 9 2015 Richard Marko <rmarko@redhat.com> - 0.13-12
-- apply last patch
-  - Related: #1210599
-
-* Wed Sep 9 2015 Richard Marko <rmarko@redhat.com> - 0.13-11
-- core unwind: fix the missing frame build_id and file_name
-  - Related: #1210599
-
-* Fri Jul 17 2015 Richard Marko <rmarko@redhat.com> - 0.13-10
-- leave saving of core backtrace to abrt hook
-  - Related: #1210599
-
-* Tue Jun 23 2015 Richard Marko <rmarko@redhat.com> - 0.13-9
-- Add functionality to generate a backtrace without saving a coredump
-  - Resolves: #1210599
-
-* Wed Nov 19 2014 Martin Milata <mmilata@redhat.com> - 0.13-8
-- Better handling of stacktraces with infinite recursion
-  - Resolves: #1142346
-
-* Fri Oct 03 2014 Martin Milata <mmilata@redhat.com> - 0.13-7
-- Don't free GDB stacktrace on error
-  - Resolves: #1147952
-
-* Fri Oct 03 2014 Martin Milata <mmilata@redhat.com> - 0.13-6
-- Ignore suppressed exceptions in the Java exception parser
-  - Resolves: #1034857
-
-* Thu Sep 18 2014 Martin Milata <mmilata@redhat.com> - 0.13-5
-- Fix minor bugs found by static analyzers
-  - Resolves: #1142856
-- Return empty duphash for koopses with no reliable frames
-  - Resolves: #1123262
-- Fix parsing of python SyntaxError exceptions
-  - Resolves: #1142339
-- Fix parsing of ppc64 gdb stacktraces
-  - Resolves: #1142338
-- Limit the depth of generated stacktrace to avoid huge reports
-  - Resolves: #1142346
-- Add authentication support to uReport, needed for reporting to customer portal
-  - Resolves: #1139555
-
 * Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 0.13-4
 - Mass rebuild 2014-01-24
 
