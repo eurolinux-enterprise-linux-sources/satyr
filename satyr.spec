@@ -19,7 +19,7 @@
 
 Name: satyr
 Version: 0.13
-Release: 4%{?dist}
+Release: 8%{?dist}
 Summary: Tools to create anonymous, machine-friendly problem reports
 Group: System Environment/Libraries
 License: GPLv2+
@@ -42,6 +42,33 @@ Patch0: satyr-0.13-elfutils-0.158.patch
 Patch1: satyr-0.13-elfutils-unwinder.patch
 Patch2: satyr-0.13-disable-fingerprints.patch
 Patch3: satyr-0.13-unwinder-refresh-config-h.patch
+
+# 1142856, minor bugs found by static analyzer
+Patch4: satyr-0.13-static-analyzer-bugs.patch
+
+# 1123262, empty duphash of unreliable koops
+Patch5: satyr-0.13-koops-unreliable-frames.patch
+
+# 1142339, python exception parsing
+Patch6: satyr-0.13-python-exceptions.patch
+
+# 1142338, ppc64 backtrace parsing
+Patch7: satyr-0.13-ppc64-backtrace-parsing.patch
+
+# 1142346, limit stacktrace depth
+Patch8: satyr-0.13-limit-stacktrace-depth.patch
+
+# 1139555, ureport auth support
+Patch9: satyr-0.13-ureport-auth-support.patch
+
+# 1034857, ignore java suppressed exceptions
+Patch10: satyr-0.13-java-suppressed-exceptions.patch
+
+# 1147952, don't free gdb stacktrace on method failure
+Patch11: satyr-0.13-dont-free-gdb-stacktrace.patch
+
+# 1142346, better handling of infinite recursion
+Patch12: satyr-0.13-better-inf-recursion-handling.patch
 
 %description
 Satyr is a library that can be used to create and process microreports.
@@ -74,6 +101,15 @@ Python bindings for %{name}.
 %patch1 -p1
 %patch2 -p1
 %patch3 -p1
+%patch4 -p1
+%patch5 -p1
+%patch6 -p1
+%patch7 -p1
+%patch8 -p1
+%patch9 -p1
+%patch10 -p1
+%patch11 -p1
+%patch12 -p1
 
 %build
 %configure \
@@ -116,6 +152,32 @@ make check
 %endif
 
 %changelog
+* Wed Nov 19 2014 Martin Milata <mmilata@redhat.com> - 0.13-8
+- Better handling of stacktraces with infinite recursion
+  - Resolves: #1142346
+
+* Fri Oct 03 2014 Martin Milata <mmilata@redhat.com> - 0.13-7
+- Don't free GDB stacktrace on error
+  - Resolves: #1147952
+
+* Fri Oct 03 2014 Martin Milata <mmilata@redhat.com> - 0.13-6
+- Ignore suppressed exceptions in the Java exception parser
+  - Resolves: #1034857
+
+* Thu Sep 18 2014 Martin Milata <mmilata@redhat.com> - 0.13-5
+- Fix minor bugs found by static analyzers
+  - Resolves: #1142856
+- Return empty duphash for koopses with no reliable frames
+  - Resolves: #1123262
+- Fix parsing of python SyntaxError exceptions
+  - Resolves: #1142339
+- Fix parsing of ppc64 gdb stacktraces
+  - Resolves: #1142338
+- Limit the depth of generated stacktrace to avoid huge reports
+  - Resolves: #1142346
+- Add authentication support to uReport, needed for reporting to customer portal
+  - Resolves: #1139555
+
 * Fri Jan 24 2014 Daniel Mach <dmach@redhat.com> - 0.13-4
 - Mass rebuild 2014-01-24
 
