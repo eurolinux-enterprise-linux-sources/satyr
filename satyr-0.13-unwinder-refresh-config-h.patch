@@ -1,7 +1,18 @@
-diff -ur satyr-0.13/configure satyr-0.13-patched/configure
---- satyr-0.13/configure	2014-01-22 18:44:45.710649231 +0100
-+++ satyr-0.13-patched/configure	2014-01-22 18:40:12.606671169 +0100
-@@ -13261,10 +13255,10 @@
+From 7351e5b5ad04bd840e75fafb8ab19d4e0c90d717 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 13 May 2016 14:42:23 +0200
+Subject: [PATCH] unwinder refresh config h
+
+---
+ configure       | 6 +++---
+ lib/config.h.in | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/configure b/configure
+index 2418533..f79cfeb 100755
+--- a/configure
++++ b/configure
+@@ -13261,10 +13261,10 @@ _ACEOF
  
  fi
  
@@ -15,9 +26,10 @@ diff -ur satyr-0.13/configure satyr-0.13-patched/configure
  
  fi
  
-diff -ur satyr-0.13/lib/config.h.in satyr-0.13-patched/lib/config.h.in
---- satyr-0.13/lib/config.h.in	2014-01-22 18:44:45.796649204 +0100
-+++ satyr-0.13-patched/lib/config.h.in	2014-01-22 18:40:13.001671173 +0100
+diff --git a/lib/config.h.in b/lib/config.h.in
+index b5c34c6..b7b6255 100644
+--- a/lib/config.h.in
++++ b/lib/config.h.in
 @@ -6,8 +6,8 @@
  /* Define to 1 if you have the <dwarf.h> header file. */
  #undef HAVE_DWARF_H
@@ -29,3 +41,6 @@ diff -ur satyr-0.13/lib/config.h.in satyr-0.13-patched/lib/config.h.in
  
  /* Define to 1 if you have the <elfutils/libdwfl.h> header file. */
  #undef HAVE_ELFUTILS_LIBDWFL_H
+-- 
+1.8.3.1
+

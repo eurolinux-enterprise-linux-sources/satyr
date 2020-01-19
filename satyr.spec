@@ -19,7 +19,7 @@
 
 Name: satyr
 Version: 0.13
-Release: 12%{?dist}
+Release: 14%{?dist}
 Summary: Tools to create anonymous, machine-friendly problem reports
 Group: System Environment/Libraries
 License: GPLv2+
@@ -37,6 +37,11 @@ BuildRequires: gcc-c++
 %if %{?enable_python_manpage}
 BuildRequires: python-sphinx
 %endif
+
+# git is need for '%%autosetup -S git' which automatically applies all the
+# patches above. Please, be aware that the patches must be generated
+# by 'git format-patch'
+BuildRequires: git
 
 Patch0: satyr-0.13-elfutils-0.158.patch
 Patch1: satyr-0.13-elfutils-unwinder.patch
@@ -79,6 +84,28 @@ Patch17: satyr-0.13-disable-hook-unwind-on-kernels-w-o-PTRACE_SEIZE.patch
 Patch18: satyr-0.13-abrt-refactorize-unwinding-from-core-hook.patch
 Patch19: satyr-0.13-core_unwind-fix-the-missing-frame-build_id-and-file.patch
 
+# 1334604, add support for Ruby
+Patch20: satyr-0.13-Add-support-for-Ruby-report-type.patch
+Patch21: satyr-0.13-python-add-Ruby-support.patch
+
+# 1332869, actualize list of normalization function in satyr
+Patch22: satyr-0.13-normalize-extend-xorg-blacklist.patch
+Patch23: satyr-0.13-normalization-additional-X-GDK-functions.patch
+Patch24: satyr-0.13-normalization-add-glibc-__assert_fail_base.patch
+Patch25: satyr-0.13-normalization-add-glibc-__libc_fatal.patch
+Patch26: satyr-0.13-normalization-normalize-out-exit-frames.patch
+Patch27: satyr-0.13-normalization-actualize-list-of-functions.patch
+
+# 1334604, add support for Ruby testsuite fix
+Patch28: satyr-0.13-tests-fix-failure-on-gcc5-on-x86_64.patch
+
+# 1336390, fix defects found by coverity
+Patch29: satyr-0.13-Fix-defects-found-by-coverity.patch
+Patch30: satyr-0.13-Check-the-return-value-of-sr_parse_char_cspan.patch
+
+# 1342469, support for VARIANT and VARIANT_ID
+Patch31: satyr-0.13-os-add-support-for-OS-Variant.patch
+
 %description
 Satyr is a library that can be used to create and process microreports.
 Microreports consist of structured data suitable to be analyzed in a fully
@@ -105,29 +132,16 @@ Requires: %{name}%{?_isa} = %{version}-%{release}
 Python bindings for %{name}.
 
 %prep
-%setup -q
-%patch0 -p1
-%patch1 -p1
-%patch2 -p1
-%patch3 -p1
-%patch4 -p1
-%patch5 -p1
-%patch6 -p1
-%patch7 -p1
-%patch8 -p1
-%patch9 -p1
-%patch10 -p1
-%patch11 -p1
-%patch12 -p1
-%patch13 -p1
-%patch14 -p1
-%patch15 -p1
-%patch16 -p1
-%patch17 -p1
-%patch18 -p1
-%patch19 -p1
+# http://www.rpm.org/wiki/PackagerDocs/Autosetup
+# Default '__scm_apply_git' is 'git apply && git commit' but this workflow
+# doesn't allow us to create a new file within a patch, so we have to use
+# 'git am' (see /usr/lib/rpm/macros for more details)
+%define __scm_apply_git(qp:m:) %{__git} am
+%autosetup -S git
 
 %build
+autoreconf
+
 %configure \
 %if ! %{?enable_python_manpage}
         --disable-python-manpage \
@@ -143,7 +157,13 @@ make install DESTDIR=%{buildroot}
 find %{buildroot} -name "*.la" | xargs rm --
 
 %check
-make check
+make check || {
+    # find and print the logs of failed test
+    # do not cat tests/testsuite.log because it contains a lot of bloat
+    find tests -name "testsuite.log" -print -exec cat '{}' \;
+    exit 1
+}
+
 
 %post -p /sbin/ldconfig
 %postun -p /sbin/ldconfig
@@ -168,6 +188,18 @@ make check
 %endif
 
 %changelog
+* Mon Jun 06 2016 Matej Habrnal <mhabrnal@redhat.com> - 0.13-14
+- add support for OS Variant
+  - Related: #1342469
+
+* Thu May 12 2016 Matej Habrnal <mhabrnal@redhat.com> - 0.13-13
+- add support for Ruby
+  - Related: #1334604
+- actualize list of normalization function in satyr
+  - Related: #1332869
+- fix defects found by coverity
+  - Related: #1336390
+
 * Wed Sep 9 2015 Richard Marko <rmarko@redhat.com> - 0.13-12
 - apply last patch
   - Related: #1210599

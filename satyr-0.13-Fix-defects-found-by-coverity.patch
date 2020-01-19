@@ -1,0 +1,282 @@
+From 481ac50e3e9ad53e4f07dce04facfaef5a2cdcfd Mon Sep 17 00:00:00 2001
+From: Martin Milata <mmilata@redhat.com>
+Date: Thu, 5 Mar 2015 14:08:15 +0100
+Subject: [PATCH] Fix defects found by coverity
+
+Resolves: #1336390
+
+Signed-off-by: Martin Milata <mmilata@redhat.com>
+
+Conflicts:
+	lib/abrt.c
+---
+ lib/core_stacktrace.c      |  8 ++++++++
+ lib/core_unwind.c          |  6 ++++--
+ lib/java_frame.c           |  3 +++
+ lib/koops_stacktrace.c     |  3 +++
+ lib/python_frame.c         | 26 ++++++++++++++------------
+ lib/rpm.c                  |  4 +++-
+ lib/utils.c                |  1 +
+ python/py_gdb_stacktrace.c |  8 ++++++++
+ satyr.c                    |  3 +++
+ 9 files changed, 47 insertions(+), 15 deletions(-)
+
+diff --git a/lib/core_stacktrace.c b/lib/core_stacktrace.c
+index f7fd369..aeb97e4 100644
+--- a/lib/core_stacktrace.c
++++ b/lib/core_stacktrace.c
+@@ -192,7 +192,10 @@ sr_core_stacktrace_from_json(struct sr_json_value *root,
+             if (crash_thread)
+             {
+                 if (!JSON_CHECK_TYPE(crash_thread, SR_JSON_BOOLEAN, "crash_thread"))
++                {
++                    sr_core_thread_free(thread);
+                     goto fail;
++                }
+ 
+                 if (crash_thread->u.boolean)
+                     result->crash_thread = thread;
+@@ -296,6 +299,7 @@ sr_core_stacktrace_create(const char *gdb_stacktrace_text,
+     {
+         warn("Unable to parse unstrip output.");
+ 
++        sr_gdb_stacktrace_free(gdb_stacktrace);
+         return NULL;
+     }
+ 
+@@ -332,6 +336,8 @@ sr_core_stacktrace_create(const char *gdb_stacktrace_text,
+                 core_frame->function_name =
+                     sr_strdup(gdb_frame->function_name);
+             }
++
++            core_thread->frames = sr_core_frame_append(core_thread->frames, core_frame);
+         }
+ 
+         core_stacktrace->threads =
+@@ -341,6 +347,8 @@ sr_core_stacktrace_create(const char *gdb_stacktrace_text,
+         gdb_thread = gdb_thread->next;
+     }
+ 
++    sr_unstrip_free(unstrip);
++    sr_gdb_stacktrace_free(gdb_stacktrace);
+     return core_stacktrace;
+ }
+ 
+diff --git a/lib/core_unwind.c b/lib/core_unwind.c
+index c30f9db..b8c0235 100644
+--- a/lib/core_unwind.c
++++ b/lib/core_unwind.c
+@@ -127,6 +127,7 @@ find_elf_core (Dwfl_Module *mod, void **userdata, const char *modname,
+         {
+             warn("Unable to open executable '%s': %s", executable_file,
+                  elf_errmsg(-1));
++            close(fd);
+             return -1;
+         }
+ 
+@@ -399,9 +400,10 @@ struct sr_core_stacktrace *
+ sr_core_stacktrace_from_gdb(const char *gdb_output, const char *core_file,
+                             const char *exe_file, char **error_msg)
+ {
++    /* I'm not going to rewrite it now since the function is not being used. */
++    assert(error_msg);
+     /* Initialize error_msg to 'no error'. */
+-    if (error_msg)
+-        *error_msg = NULL;
++    *error_msg = NULL;
+ 
+     struct core_handle *ch = open_coredump(core_file, exe_file, error_msg);
+     if (*error_msg)
+diff --git a/lib/java_frame.c b/lib/java_frame.c
+index ee97572..d03f86a 100644
+--- a/lib/java_frame.c
++++ b/lib/java_frame.c
+@@ -359,7 +359,10 @@ sr_java_frame_parse_exception(const char **input,
+         if (exception->next == NULL)
+             exception->next = parsed;
+         else
++        {
++            assert(frame);
+             frame->next = parsed;
++        }
+ 
+         frame = parsed;
+     }
+diff --git a/lib/koops_stacktrace.c b/lib/koops_stacktrace.c
+index 611c7d1..01baa79 100644
+--- a/lib/koops_stacktrace.c
++++ b/lib/koops_stacktrace.c
+@@ -506,7 +506,10 @@ taint_flags_to_json(struct sr_koops_stacktrace *stacktrace)
+     }
+ 
+     if (strbuf->len == 0)
++    {
++        sr_strbuf_free(strbuf);
+         return sr_strdup("[]");
++    }
+ 
+     sr_strbuf_append_char(strbuf, ']');
+     char *result = sr_strbuf_free_nobuf(strbuf);
+diff --git a/lib/python_frame.c b/lib/python_frame.c
+index b0540fe..4b4be8a 100644
+--- a/lib/python_frame.c
++++ b/lib/python_frame.c
+@@ -220,11 +220,10 @@ sr_python_frame_parse(const char **input,
+     /* Parse file name */
+     if (!sr_parse_char_cspan(&local_input, "\"", &frame->file_name))
+     {
+-        sr_python_frame_free(frame);
+         location->message = sr_asprintf("Unable to find the '\"' character "
+                 "identifying the beginning of file name.");
+ 
+-        return NULL;
++        goto fail;
+     }
+ 
+     if (strlen(frame->file_name) > 0 &&
+@@ -243,7 +242,7 @@ sr_python_frame_parse(const char **input,
+     if (0 == sr_skip_string(&local_input, "\", line "))
+     {
+         location->message = sr_asprintf("Line separator not found.");
+-        return NULL;
++        goto fail;
+     }
+ 
+     location->column += strlen("\", line ");
+@@ -253,7 +252,7 @@ sr_python_frame_parse(const char **input,
+     if (0 == length)
+     {
+         location->message = sr_asprintf("Line number not found.");
+-        return NULL;
++        goto fail;
+     }
+ 
+     location->column += length;
+@@ -263,7 +262,7 @@ sr_python_frame_parse(const char **input,
+         if (local_input[0] != '\n')
+         {
+             location->message = sr_asprintf("Function name separator not found.");
+-            return NULL;
++            goto fail;
+         }
+ 
+         /* The last frame of SyntaxError stack trace does not have
+@@ -280,11 +279,10 @@ sr_python_frame_parse(const char **input,
+         /* Parse function name */
+         if (!sr_parse_char_cspan(&local_input, "\n", &frame->function_name))
+         {
+-            sr_python_frame_free(frame);
+             location->message = sr_asprintf("Unable to find the newline character "
+                     "identifying the end of function name.");
+ 
+-            return NULL;
++            goto fail;
+         }
+ 
+         location->column += strlen(frame->function_name);
+@@ -301,19 +299,23 @@ sr_python_frame_parse(const char **input,
+         }
+     }
+ 
+-    sr_skip_char(&local_input, '\n');
+-    sr_location_add(location, 1, 0);
++    if (sr_skip_char(&local_input, '\n'))
++        sr_location_add(location, 1, 0);
+ 
+     /* Parse source code line (optional). */
+     if (4 == sr_skip_string(&local_input, "    "))
+     {
+-        sr_parse_char_cspan(&local_input, "\n", &frame->line_contents);
+-        sr_skip_char(&local_input, '\n');
+-        sr_location_add(location, 1, 0);
++        if (sr_parse_char_cspan(&local_input, "\n", &frame->line_contents)
++                && sr_skip_char(&local_input, '\n'))
++            sr_location_add(location, 1, 0);
+     }
+ 
+     *input = local_input;
+     return frame;
++
++fail:
++    sr_python_frame_free(frame);
++    return NULL;
+ }
+ 
+ char *
+diff --git a/lib/rpm.c b/lib/rpm.c
+index f8f1fa6..920e145 100644
+--- a/lib/rpm.c
++++ b/lib/rpm.c
+@@ -199,7 +199,9 @@ sr_rpm_package_sort(struct sr_rpm_package *packages)
+             array[loop]->next = NULL;
+     }
+ 
+-    return array[0];
++    struct sr_rpm_package *result = array[0];
++    free(array);
++    return result;
+ }
+ 
+ static struct sr_rpm_package *
+diff --git a/lib/utils.c b/lib/utils.c
+index fa3c0a0..bdafaa7 100644
+--- a/lib/utils.c
++++ b/lib/utils.c
+@@ -354,6 +354,7 @@ sr_string_to_file(const char *filename,
+                                      filename,
+                                      error);
+ 
++        close(fd);
+         return false;
+     }
+ 
+diff --git a/python/py_gdb_stacktrace.c b/python/py_gdb_stacktrace.c
+index c799e06..5ed3533 100644
+--- a/python/py_gdb_stacktrace.c
++++ b/python/py_gdb_stacktrace.c
+@@ -7,6 +7,7 @@
+ #include "strbuf.h"
+ #include "gdb/stacktrace.h"
+ #include "gdb/thread.h"
++#include "gdb/frame.h"
+ #include "gdb/sharedlib.h"
+ #include "location.h"
+ #include "normalize.h"
+@@ -408,13 +409,20 @@ sr_py_gdb_stacktrace_find_crash_frame(PyObject *self, PyObject *args)
+         PyObject_New(struct sr_py_gdb_frame, &sr_py_gdb_frame_type);
+ 
+     if (!result)
++    {
++        sr_gdb_frame_free(frame);
+         return PyErr_NoMemory();
++    }
+ 
+     result->frame = frame;
+     this->crashframe = result;
+ 
+     if (stacktrace_rebuild_thread_python_list(this) < 0)
++    {
++        sr_gdb_frame_free(frame);
++        Py_DECREF(result);
+         return NULL;
++    }
+ 
+     return (PyObject *)result;
+ }
+diff --git a/satyr.c b/satyr.c
+index 6e1ed28..44bf869 100644
+--- a/satyr.c
++++ b/satyr.c
+@@ -210,6 +210,9 @@ debug_normalize(int argc, char **argv)
+     struct sr_strbuf *strbuf = sr_strbuf_new();
+     sr_gdb_thread_append_to_str(thread, strbuf, false);
+     puts(strbuf->buf);
++
++    free(text);
++    sr_strbuf_free(strbuf);
+ }
+ 
+ static void
+-- 
+1.8.3.1
+
